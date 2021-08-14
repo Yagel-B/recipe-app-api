@@ -43,10 +43,30 @@ class RecipeViewSet(viewsets.ModelViewSet):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
+    # Python hasn't public/private ability,
+    # so if we want to determine that function is private,
+    # we can just _ prefix, its common but not setting it to private
+    def _params_to_ints(self, qs):
+        """Convert a list of string Ids to a list of integers"""
+        # changing "1,2,3" to array of integer [1,2,3]
+        return [int(str_id) for str_id in qs.split(',')]
+
     # We override the default function at ModelViewSet.
     def get_queryset(self):
         """Return recipes for the current Authenticated user only"""
-        return self.queryset.filter(user=self.request.user)
+        tags = self.request.query_params.get('tags')
+        ingredients = self.request.query_params.get('ingredients')
+        queryset = self.queryset
+        if tags:
+            tag_ids = self._params_to_ints(tags)
+            # tags__id__in - This is python syntax,
+            # which mean filter tags by id,
+            # and after adding also the __in it means by ids in that parameter
+            queryset = queryset.filter(tags__id__in=tag_ids)
+        if ingredients:
+            ingredient_ids = self._params_to_ints(ingredients)
+            queryset = queryset.filter(ingredients__id__in=ingredient_ids)
+        return queryset.filter(user=self.request.user)
 
     def get_serializer_class(self):
         """Return appropriate serializer class"""
